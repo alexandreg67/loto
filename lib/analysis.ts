@@ -1,6 +1,5 @@
 import dbConnect from './mongodb';
 import Loto from '../models/loto';
-import { log } from 'console';
 
 // getNumberFrequencies
 export async function getNumberFrequencies() {
@@ -226,8 +225,6 @@ export async function getCycleAnalysis(cycleLength = 10) {
 	cycleFrequencyMap.forEach((frequencies, num) => {
 		scores.set(num, frequencies[currentCycleIndex]);
 	});
-
-	console.log('je suis dans getCycleAnalysis et je log scores', scores);
 
 	return Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
 }
@@ -457,11 +454,6 @@ export async function getSuggestedNumbers() {
 		normalizeScores(analysis)
 	);
 
-	console.log(
-		'je suis dans suggestedNumbers et je log normalizedAnalyses',
-		normalizedAnalyses
-	);
-
 	// Combiner les scores avec pondération (exclure weightedRandomNumbers)
 	normalizedAnalyses.slice(0, -1).forEach((analysis, index) => {
 		const weight = weights[analysesNames[index] as keyof typeof weights];
@@ -484,8 +476,6 @@ export async function getSuggestedNumbers() {
 		});
 	});
 
-	console.log('je suis dans suggestedNumbers et je log scoreMap', scoreMap);
-
 	// Influencer les scores avec weightedRandomNumbers (exemple)
 	const weightedRandomBonus = 0.1;
 	weightedRandomNumbers.forEach((num) => {
@@ -505,11 +495,6 @@ export async function getSuggestedNumbers() {
 		})
 		.slice(0, 6) // Prendre les 6 premiers numéros après le tri
 		.map(([num]) => num);
-
-	console.log(
-		'je suis dans suggestedNumbers et je log suggestedNumbers',
-		suggestedNumbers
-	);
 
 	return {
 		frequencies,
