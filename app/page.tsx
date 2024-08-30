@@ -23,6 +23,7 @@ export default function Home() {
 		async function fetchAnalysis() {
 			const response = await fetch('/api/analysis');
 			const data = await response.json();
+			console.log("je suis dans la page d'accueil et je log data", data);
 			if (data.success) {
 				setAnalysis(data);
 			} else {
