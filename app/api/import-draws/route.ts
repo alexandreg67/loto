@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Loto from '@/models/loto';
+import { ApiResponse, LotoDraw } from '@/types';
 
-export async function POST() {
+interface LotteryApiDraw {
+	date: string;
+	numbers: string;
+}
+
+export async function POST(): Promise<NextResponse<ApiResponse<{ imported: number }>>> {
 	try {
 		await dbConnect();
 
@@ -89,6 +95,7 @@ export async function POST() {
 			{
 				success: true,
 				message: `${newDraws.length} tirage(s) ont été importé(s).`,
+				data: { imported: newDraws.length }
 			},
 			{ status: 201 }
 		);

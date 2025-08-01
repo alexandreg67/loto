@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface Draw {
 	_id: string;
@@ -18,19 +18,7 @@ export default function History() {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [importing, setImporting] = useState<boolean>(false);
 
-	useEffect(() => {
-		fetchDraws();
-	}, []);
-
-	useEffect(() => {
-		// Filtre les tirages en fonction du mois sélectionné
-		const filtered = draws.filter((draw) =>
-			draw.drawDate.startsWith(selectedMonth)
-		);
-		setFilteredDraws(filtered);
-	}, [selectedMonth, draws]);
-
-	async function fetchDraws() {
+	const fetchDraws = useCallback(async () => {
 		setLoading(true);
 		try {
 			const response = await fetch('/api/draws'); // Utilise ton API pour récupérer les tirages
@@ -38,9 +26,9 @@ export default function History() {
 				throw new Error(`Erreur HTTP : ${response.status}`);
 			}
 			const data = await response.json();
-			if (data.success) {
-				setDraws(data.draws);
-				const filtered = data.draws.filter((draw: Draw) =>
+			if (data.success && data.data) {
+				setDraws(data.data);
+				const filtered = data.data.filter((draw: Draw) =>
 					draw.drawDate.startsWith(selectedMonth)
 				);
 				setFilteredDraws(filtered);
@@ -55,7 +43,19 @@ export default function History() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [selectedMonth]);
+
+	useEffect(() => {
+		fetchDraws();
+	}, [fetchDraws]);
+
+	useEffect(() => {
+		// Filtre les tirages en fonction du mois sélectionné
+		const filtered = draws.filter((draw) =>
+			draw.drawDate.startsWith(selectedMonth)
+		);
+		setFilteredDraws(filtered);
+	}, [selectedMonth, draws]);
 
 	async function importDraws() {
 		setImporting(true);

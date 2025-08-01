@@ -1,30 +1,73 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Loto from '@/models/loto';
+import { LotoDraw, ApiResponse } from '@/types';
 
-export async function POST(request: {
-	json: () =>
-		| PromiseLike<{ drawDate: any; numbers: any; luckyNumber: any }>
-		| { drawDate: any; numbers: any; luckyNumber: any };
-}) {
+interface AddDrawRequest {
+	drawDate: string;
+	numbers: number[];
+	luckyNumber: number;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<LotoDraw>>> {
 	try {
 		await dbConnect();
 
 		// Récupérer les données du corps de la requête POST
-		const { drawDate, numbers, luckyNumber } = await request.json();
+		const body: AddDrawRequest = await request.json();
+		const { drawDate, numbers, luckyNumber } = body;
 
-		// Vérifier que les données fournies sont valides
-		if (
-			!drawDate ||
-			!numbers ||
-			numbers.length !== 5 ||
-			luckyNumber === undefined
-		) {
+		// Validation détaillée des données
+		if (!drawDate || isNaN(Date.parse(drawDate))) {
 			return NextResponse.json(
 				{
 					success: false,
-					message:
-						'Les données fournies sont invalides. Assurez-vous de fournir une date valide, 5 numéros, et un numéro chance.',
+					message: 'Date de tirage invalide.',
+				},
+				{ status: 400 }
+			);
+		}
+
+		if (!Array.isArray(numbers) || numbers.length !== 5) {
+			return NextResponse.json(
+				{
+					success: false,
+					message: 'Vous devez fournir exactement 5 numéros principaux.',
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Vérifier que tous les numéros sont valides (1-49)
+		const invalidNumbers = numbers.filter(num => !Number.isInteger(num) || num < 1 || num > 49);
+		if (invalidNumbers.length > 0) {
+			return NextResponse.json(
+				{
+					success: false,
+					message: 'Les numéros principaux doivent être des entiers entre 1 et 49.',
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Vérifier les doublons
+		const uniqueNumbers = new Set(numbers);
+		if (uniqueNumbers.size !== 5) {
+			return NextResponse.json(
+				{
+					success: false,
+					message: 'Les numéros principaux doivent être uniques.',
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Vérifier le numéro chance (1-10)
+		if (!Number.isInteger(luckyNumber) || luckyNumber < 1 || luckyNumber > 10) {
+			return NextResponse.json(
+				{
+					success: false,
+					message: 'Le numéro chance doit être un entier entre 1 et 10.',
 				},
 				{ status: 400 }
 			);
@@ -51,10 +94,14 @@ export async function POST(request: {
 		});
 
 		// Enregistrer le tirage dans la base de données
-		await newDraw.save();
+		const savedDraw = await newDraw.save();
 
 		return NextResponse.json(
-			{ success: true, message: 'Tirage ajouté avec succès!' },
+			{ 
+				success: true, 
+				message: 'Tirage ajouté avec succès!',
+				data: savedDraw
+			},
 			{ status: 201 }
 		);
 	} catch (error) {

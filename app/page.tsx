@@ -2,22 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { AnalysisState } from '@/types';
 
 export default function Home() {
-	interface Draw {
-		_id: string;
-		drawDate: string;
-		numbers: number[];
-		bonusNumber: number;
-	}
-
-	const [analysis, setAnalysis] = useState<{
-		sequences: any;
-		gaps: any;
-		pairs: any;
-		frequencies: any;
-		suggestedNumbers: number[];
-	} | null>(null);
+	const [analysis, setAnalysis] = useState<AnalysisState | null>(null);
 
 	const [loading, setLoading] = useState(true);
 
@@ -25,13 +13,21 @@ export default function Home() {
 		async function fetchAnalysis() {
 			try {
 				const response = await fetch('/api/analysis');
-				const data = await response.json();
-				if (data.success) {
-					setAnalysis(data);
+				const result = await response.json();
+				
+				if (result.success && result.data) {
+					// Transform the new API response format to match the component's expectations
+					setAnalysis({
+						sequences: result.data.sequences || [],
+						gaps: result.data.gaps || [],
+						pairs: result.data.pairs || [],
+						frequencies: result.data.frequencies || [],
+						suggestedNumbers: result.data.suggestedNumbers || []
+					});
 				} else {
 					console.error(
 						"Erreur lors de la récupération des données d'analyse:",
-						data.message
+						result.message
 					);
 				}
 			} catch (error) {
@@ -89,21 +85,38 @@ export default function Home() {
 						gagnants.
 					</p>
 					{loading ? (
-						<div className="flex justify-center">
-							<div className="spinner-border animate-spin inline-block w-12 h-12 border-4 rounded-full text-blue-200"></div>
+						<div className="flex space-x-4 justify-center">
+							{Array.from({ length: 6 }).map((_, i) => (
+								<div 
+									key={i}
+									className="w-12 h-12 rounded-full bg-white/20 animate-pulse"
+								/>
+							))}
 						</div>
-					) : (
-						<ul className="flex space-x-4 justify-center">
-							{analysis &&
-								analysis.suggestedNumbers.map((num) => (
-									<li
-										key={num}
-										className="bg-primary text-white rounded-full w-12 h-12 flex items-center justify-center text-lg font-bold shadow-lg"
-									>
-										{num}
-									</li>
-								))}
+					) : analysis && analysis.suggestedNumbers.length > 0 ? (
+						<ul className="flex space-x-4 justify-center flex-wrap gap-2">
+							{analysis.suggestedNumbers.map((num, index) => (
+								<li
+									key={num}
+									className="bg-primary text-white rounded-full w-12 h-12 flex items-center justify-center text-lg font-bold shadow-lg transform transition-all duration-300 hover:scale-110 hover:bg-primary-focus"
+									style={{
+										animationDelay: `${index * 0.1}s`,
+									}}
+								>
+									{num}
+								</li>
+							))}
 						</ul>
+					) : (
+						<div className="text-center py-8">
+							<div className="text-6xl mb-4">🎯</div>
+							<p className="text-lg text-gray-200 mb-4">
+								Aucun numéro suggéré disponible
+							</p>
+							<p className="text-sm text-gray-300">
+								Il semble qu&apos;il n&apos;y ait pas assez de données pour générer des suggestions.
+							</p>
+						</div>
 					)}
 				</section>
 			</main>
