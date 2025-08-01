@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "rm -rf .next node_modules", 
+    "reinstall": "pnpm clean && pnpm install",
+    "clear-cache": "next build && next start"
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",
