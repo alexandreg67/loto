@@ -234,4 +234,106 @@ export class MockAnalysisService {
 	}
 }
 
+// In-memory storage for new draws added during the session
+let inMemoryDraws: LotoDraw[] = [...mockLotteryDraws];
+
+// Mock data service with add functionality
+export class MockDataService {
+	/**
+	 * Get all draws (mock + in-memory)
+	 */
+	getAllDraws(): LotoDraw[] {
+		return [...inMemoryDraws].sort((a, b) => 
+			new Date(b.drawDate).getTime() - new Date(a.drawDate).getTime()
+		);
+	}
+
+	/**
+	 * Add a new draw to in-memory storage
+	 */
+	addDraw(draw: Omit<LotoDraw, '_id'>): LotoDraw {
+		// Generate new ID
+		const newId = (inMemoryDraws.length + 1).toString();
+		const newDraw: LotoDraw = {
+			...draw,
+			_id: newId,
+			drawDate: typeof draw.drawDate === 'string' ? new Date(draw.drawDate) : draw.drawDate,
+		};
+
+		// Add to in-memory storage
+		inMemoryDraws.unshift(newDraw);
+		
+		return newDraw;
+	}
+
+	/**
+	 * Check if draw exists for a specific date
+	 */
+	findDrawByDate(date: Date): LotoDraw | null {
+		const targetDate = new Date(date).toDateString();
+		return inMemoryDraws.find(draw => 
+			new Date(draw.drawDate).toDateString() === targetDate
+		) || null;
+	}
+
+	/**
+	 * Get draws with pagination and filtering
+	 */
+	getDraws(limit = 50, offset = 0, startDate?: string, endDate?: string): {
+		draws: LotoDraw[];
+		totalCount: number;
+	} {
+		let filteredDraws = inMemoryDraws;
+
+		// Apply date filtering
+		if (startDate || endDate) {
+			filteredDraws = inMemoryDraws.filter(draw => {
+				const drawDate = new Date(draw.drawDate);
+				if (startDate && drawDate < new Date(startDate)) return false;
+				if (endDate && drawDate > new Date(endDate)) return false;
+				return true;
+			});
+		}
+
+		// Apply pagination
+		const paginatedDraws = filteredDraws.slice(offset, offset + limit);
+
+		return {
+			draws: paginatedDraws,
+			totalCount: filteredDraws.length
+		};
+	}
+
+	/**
+	 * Bulk import draws (for API integration)
+	 */
+	importDraws(draws: Omit<LotoDraw, '_id'>[]): {
+		imported: number;
+		skipped: number;
+	} {
+		let imported = 0;
+		let skipped = 0;
+
+		draws.forEach(draw => {
+			const existingDraw = this.findDrawByDate(new Date(draw.drawDate));
+			if (existingDraw) {
+				skipped++;
+			} else {
+				this.addDraw(draw);
+				imported++;
+			}
+		});
+
+		return { imported, skipped };
+	}
+
+	/**
+	 * Reset to original mock data (for testing)
+	 */
+	reset(): void {
+		inMemoryDraws = [...mockLotteryDraws];
+	}
+}
+
 export const mockAnalysisService = new MockAnalysisService();
+export const mockDataService = new MockDataService();

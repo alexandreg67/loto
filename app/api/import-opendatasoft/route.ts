@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Loto from '@/models/loto';
 import { openDataSoftService } from '@/lib/opendatasoft';
+import { mockDataService } from '@/lib/mock-data';
 import { ApiResponse, LotoDraw } from '@/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<{ imported: number; skipped: number }>>> {
 	try {
-		await dbConnect();
-
 		// Parse request body for optional parameters
 		const body = await request.json();
-		const limit = body.limit || 100;
+		const limit = body.limit || 50; // Reduced default limit for better performance
 
 		// Check if OpenDataSoft API is available
 		const isAvailable = await openDataSoftService.healthCheck();
@@ -30,35 +29,53 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 		let imported = 0;
 		let skipped = 0;
 
-		// Import each draw, skipping duplicates
-		for (const draw of externalDraws) {
-			try {
-				// Check if draw already exists (by date)
-				const existingDraw = await Loto.findOne({ 
-					drawDate: {
-						$gte: new Date(draw.drawDate).setHours(0, 0, 0, 0),
-						$lt: new Date(draw.drawDate).setHours(23, 59, 59, 999)
+		try {
+			// Try to use real database
+			await dbConnect();
+			
+			// Import each draw, skipping duplicates
+			for (const draw of externalDraws) {
+				try {
+					// Check if draw already exists (by date)
+					const existingDraw = await Loto.findOne({ 
+						drawDate: {
+							$gte: new Date(draw.drawDate).setHours(0, 0, 0, 0),
+							$lt: new Date(draw.drawDate).setHours(23, 59, 59, 999)
+						}
+					});
+
+					if (existingDraw) {
+						skipped++;
+						continue;
 					}
-				});
 
-				if (existingDraw) {
+					// Create new draw
+					const newDraw = new Loto({
+						drawDate: draw.drawDate,
+						numbers: draw.numbers,
+						luckyNumber: draw.luckyNumber,
+					});
+
+					await newDraw.save();
+					imported++;
+				} catch (error) {
+					console.error(`Error importing draw for ${draw.drawDate}:`, error);
 					skipped++;
-					continue;
 				}
-
-				// Create new draw
-				const newDraw = new Loto({
-					drawDate: draw.drawDate,
-					numbers: draw.numbers,
-					luckyNumber: draw.luckyNumber,
-				});
-
-				await newDraw.save();
-				imported++;
-			} catch (error) {
-				console.error(`Error importing draw for ${draw.drawDate}:`, error);
-				skipped++;
 			}
+		} catch (dbError) {
+			// Fallback to mock data service
+			console.warn('Database unavailable, using mock data service for import:', dbError);
+			
+			const drawsToImport = externalDraws.map(draw => ({
+				drawDate: draw.drawDate,
+				numbers: draw.numbers,
+				luckyNumber: draw.luckyNumber,
+			}));
+
+			const result = mockDataService.importDraws(drawsToImport);
+			imported = result.imported;
+			skipped = result.skipped;
 		}
 
 		return NextResponse.json(

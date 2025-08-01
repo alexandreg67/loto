@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Loto from '@/models/loto';
-import { mockLotteryDraws } from '@/lib/mock-data';
+import { mockDataService } from '@/lib/mock-data';
 import { ApiResponse, LotoDraw } from '@/types';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<LotoDraw[]>>> {
@@ -44,24 +44,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 			draws = dbDraws as unknown as LotoDraw[];
 			totalCount = dbTotalCount;
 		} catch (dbError) {
-			// Fallback to mock data if database is not available
-			console.warn('Database unavailable, using mock data:', dbError);
+			// Fallback to mock data service (includes in-memory draws)
+			console.warn('Database unavailable, using mock data service:', dbError);
 			
-			let filteredDraws = mockLotteryDraws;
-			
-			// Apply date filtering to mock data
-			if (startDate || endDate) {
-				filteredDraws = mockLotteryDraws.filter(draw => {
-					const drawDate = new Date(draw.drawDate);
-					if (startDate && drawDate < new Date(startDate)) return false;
-					if (endDate && drawDate > new Date(endDate)) return false;
-					return true;
-				});
-			}
-
-			// Apply pagination to mock data
-			draws = filteredDraws.slice(offset, offset + limit);
-			totalCount = filteredDraws.length;
+			const result = mockDataService.getDraws(limit, offset, startDate || undefined, endDate || undefined);
+			draws = result.draws;
+			totalCount = result.totalCount;
 		}
 
 		return NextResponse.json(

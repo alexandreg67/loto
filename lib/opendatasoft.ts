@@ -2,7 +2,7 @@ import { LotoDraw } from '@/types';
 
 interface OpenDataSoftResponse {
 	total_count: number;
-	results: Array<{
+	records: Array<{
 		record: {
 			timestamp: string;
 			fields: {
@@ -39,7 +39,7 @@ export class OpenDataSoftService {
 			}
 
 			const data: OpenDataSoftResponse = await response.json();
-			return this.transformResults(data.results);
+			return this.transformResults(data.records);
 		} catch (error) {
 			console.error('Error fetching lottery results from OpenDataSoft:', error);
 			throw new Error(`Failed to fetch lottery results: ${error}`);
@@ -59,7 +59,7 @@ export class OpenDataSoftService {
 			}
 
 			const data: OpenDataSoftResponse = await response.json();
-			return this.transformResults(data.results);
+			return this.transformResults(data.records);
 		} catch (error) {
 			console.error('Error fetching lottery results by date range:', error);
 			throw new Error(`Failed to fetch lottery results: ${error}`);
@@ -69,9 +69,9 @@ export class OpenDataSoftService {
 	/**
 	 * Transform OpenDataSoft results to our LotoDraw format
 	 */
-	private transformResults(results: OpenDataSoftResponse['results']): LotoDraw[] {
-		return results.map(result => {
-			const fields = result.record.fields;
+	private transformResults(records: OpenDataSoftResponse['records']): LotoDraw[] {
+		return records.map(record => {
+			const fields = record.record.fields;
 			return {
 				_id: `${fields.date_de_tirage}`, // Using date as temporary ID
 				drawDate: new Date(fields.date_de_tirage),

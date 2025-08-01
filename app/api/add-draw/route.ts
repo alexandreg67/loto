@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Loto from '@/models/loto';
+import { mockDataService } from '@/lib/mock-data';
 import { LotoDraw, ApiResponse } from '@/types';
 
 interface AddDrawRequest {
@@ -11,8 +12,6 @@ interface AddDrawRequest {
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<LotoDraw>>> {
 	try {
-		await dbConnect();
-
 		// Récupérer les données du corps de la requête POST
 		const body: AddDrawRequest = await request.json();
 		const { drawDate, numbers, luckyNumber } = body;
@@ -73,28 +72,58 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 			);
 		}
 
-		// Vérifier si un tirage existe déjà pour cette date
-		const existingDraw = await Loto.findOne({ drawDate: new Date(drawDate) });
+		let savedDraw: LotoDraw;
 
-		if (existingDraw) {
-			return NextResponse.json(
-				{
-					success: false,
-					message: 'Un tirage existe déjà pour cette date.',
-				},
-				{ status: 400 }
-			);
+		try {
+			// Try to use real database
+			await dbConnect();
+			
+			// Vérifier si un tirage existe déjà pour cette date
+			const existingDraw = await Loto.findOne({ drawDate: new Date(drawDate) });
+
+			if (existingDraw) {
+				return NextResponse.json(
+					{
+						success: false,
+						message: 'Un tirage existe déjà pour cette date.',
+					},
+					{ status: 400 }
+				);
+			}
+
+			// Créer un nouveau tirage
+			const newDraw = new Loto({
+				drawDate: new Date(drawDate),
+				numbers,
+				luckyNumber,
+			});
+
+			// Enregistrer le tirage dans la base de données
+			savedDraw = await newDraw.save();
+		} catch (dbError) {
+			// Fallback to mock data service
+			console.warn('Database unavailable, using mock data service:', dbError);
+			
+			// Vérifier si un tirage existe déjà pour cette date dans les données mock
+			const existingDraw = mockDataService.findDrawByDate(new Date(drawDate));
+
+			if (existingDraw) {
+				return NextResponse.json(
+					{
+						success: false,
+						message: 'Un tirage existe déjà pour cette date.',
+					},
+					{ status: 400 }
+				);
+			}
+
+			// Ajouter le tirage aux données mock
+			savedDraw = mockDataService.addDraw({
+				drawDate: new Date(drawDate),
+				numbers,
+				luckyNumber,
+			});
 		}
-
-		// Créer un nouveau tirage
-		const newDraw = new Loto({
-			drawDate: new Date(drawDate),
-			numbers,
-			luckyNumber,
-		});
-
-		// Enregistrer le tirage dans la base de données
-		const savedDraw = await newDraw.save();
 
 		return NextResponse.json(
 			{ 
