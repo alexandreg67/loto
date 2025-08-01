@@ -196,7 +196,7 @@ export class MockAnalysisService {
 		const topNumbers = frequencies.slice(0, 10).map(([num]) => num);
 		
 		// Add some randomness to make it interesting
-		const randomNumbers = [];
+		const randomNumbers: number[] = [];
 		while (randomNumbers.length < 6) {
 			const num = Math.floor(Math.random() * 49) + 1;
 			if (!randomNumbers.includes(num)) {
